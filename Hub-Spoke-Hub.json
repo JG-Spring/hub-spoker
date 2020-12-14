@@ -1,0 +1,593 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "ddosProtectionPlans_name": {
+            "type": "String"
+        },
+        "vNet_name": {
+            "type": "String"
+        },
+        "vNet_addressSpace": {
+            "type": "String"
+        },
+        "vNet_subnetGateway_addressSpace": {
+            "type": "String"
+        },
+        "vNet_subnetFirewall_addressSpace": {
+            "type": "String"
+        },
+        "vNet_subnetInternalDc_name": {
+            "type": "String"
+        },
+        "vNet_subnetInternalDc_addressSpace": {
+            "type": "String"
+        },
+        "nsg_internalDc_name": {
+            "type": "String"
+        },
+        "vNet_subnetEdgeDc_Name": {
+            "type": "String"
+        },
+        "vNet_subnetEdgeDc_addressSpace": {
+            "type": "String"
+        },
+        "nsg_edgeDc_name": {
+            "type": "String"
+        },
+        "vNet_subnetInfoBlox_Name": {
+            "type": "String"
+        },
+        "vNet_subnetInfoBlox_addressSpace": {
+            "type": "String"
+        },
+        "nsg_infoBlox_name": {
+            "type": "String"
+        },
+        "vNet_subnetRdp_Name": {
+            "type": "String"
+        },
+        "vNet_subnetRdp_addressSpace": {
+            "type": "String"
+        },
+        "nsg_rdp_name": {
+            "type": "String"
+        },
+        "vNet_subnetInfrastructure_Name": {
+            "type": "String"
+        },
+        "vNet_subnetInfrastructure_addressSpace": {
+            "type": "String"
+        },
+        "nsg_infrastructure_name": {
+            "type": "String"
+        },
+        "vNet_Gateway_name": {
+            "type": "String"
+        },
+        "publicIPAddresses_vNetGateway_name": {
+            "type": "String"
+        },
+        "azureFirewall_name": {
+            "type": "String"
+        },
+        "publicIPAddresses_azureFirewall_name": {
+            "type": "String"
+        },
+        "routeTables_name": {
+            "type": "String"
+        }
+    },
+    "variables": {
+        "location": "[resourceGroup().location]",
+        "nsgRule_allowIntraComm_name":  "AllowIntraComm",
+        "nsgRule_allowDnsInbound_name": "AllowEdgeInbound",
+        "nsgRule_allowInternalDcs_name": "AllowInternalDCsInbound",
+        "nsgRule_allowRdpInbound_name": "AllowRdpInbound",
+        "nsgRule_denyVnetInbound_name": "DenyVnetInbound",
+        "zScalerIpAddress": "165.225.112.182"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('vNet_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_internalDc_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_edgeDc_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_infoBlox_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_rdp_name'))]",
+                "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_infrastructure_name'))]"
+            ],
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[parameters('vNet_addressSpace')]"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "GatewaySubnet",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetGateway_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    },
+                    {
+                        "name": "AzureFirewallSubnet",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetFirewall_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled"
+                        }
+                    },
+                    {
+                        "name": "[parameters('vNet_subnetInternalDc_name')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetInternalDc_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "routeTable": {
+                                "id": "[resourceId('Microsoft.Network/routeTables', parameters('routeTables_name'))]"
+                            },
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_internalDc_name'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[parameters('vNet_subnetEdgeDc_Name')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetEdgeDc_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "routeTable": {
+                                "id": "[resourceId('Microsoft.Network/routeTables', parameters('routeTables_name'))]"
+                            },
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_edgeDc_name'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[parameters('vNet_subnetInfoBlox_Name')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "routeTable": {
+                                "id": "[resourceId('Microsoft.Network/routeTables', parameters('routeTables_name'))]"
+                            },
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_infoBlox_name'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[parameters('vNet_subnetRdp_Name')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetRdp_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "routeTable": {
+                                "id": "[resourceId('Microsoft.Network/routeTables', parameters('routeTables_name'))]"
+                            },
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_rdp_name'))]"
+                            }
+                        }
+                    },
+                    {
+                        "name": "[parameters('vNet_subnetInfrastructure_Name')]",
+                        "properties": {
+                            "addressPrefix": "[parameters('vNet_subnetInfrastructure_addressSpace')]",
+                            "delegations": [],
+                            "privateEndpointNetworkPolicies": "Enabled",
+                            "privateLinkServiceNetworkPolicies": "Enabled",
+                            "routeTable": {
+                                "id": "[resourceId('Microsoft.Network/routeTables', parameters('routeTables_name'))]"
+                            },
+                            "networkSecurityGroup": {
+                                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('nsg_infrastructure_name'))]"
+                            }
+                        }
+                    }
+                ],
+                "enableDdosProtection": true,
+                "enableVmProtection": false,
+                "ddosProtectionPlan": {
+                    "id": "[resourceId('Microsoft.Network/ddosProtectionPlans', parameters('ddosProtectionPlans_name'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Network/virtualNetworkGateways",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('vNet_Gateway_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNet_name'))]"
+            ],
+            "properties": {
+                "enablePrivateIpAddress": false,
+                "ipConfigurations": [
+                    {
+                        "name": "[concat(parameters('vNet_Gateway_name'), '-Config')]",
+                        "properties": {
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_vNetGateway_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNet_name'), 'GatewaySubnet')]"
+                            }
+                        }
+                    }
+                ],
+                "sku": {
+                    "name": "Standard",
+                    "tier": "Standard"
+                },
+                "gatewayType": "ExpressRoute",
+                "vpnType": "PolicyBased",
+                "enableBgp": false,
+                "activeActive": false,
+                "vpnGatewayGeneration": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('publicIPAddresses_vNetGateway_name')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/azureFirewalls",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('azureFirewall_name')]",
+            "location": "[variables('location')]",
+            "dependsOn": [
+                
+                "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNet_name'))]",
+                "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_azureFirewall_name'))]"
+            ],
+            "properties": {
+                "sku": {
+                    "name": "AZFW_VNet",
+                    "tier": "Standard"
+                },
+                "threatIntelMode": "Alert",
+                "additionalProperties": {},
+                "ipConfigurations": [
+                    {
+                        "name": "[parameters('publicIPAddresses_vNetGateway_name')]",
+                        "properties": {
+                            "publicIPAddress": {
+                                "id": "[resourceId('Microsoft.Network/publicIPAddresses', parameters('publicIPAddresses_azureFirewall_name'))]"
+                            },
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vNet_name'), 'AzureFirewallSubnet')]"
+                            }
+                        }
+                    }
+                ],
+                "networkRuleCollections": [
+                    {
+                        "name": "AllowRules",
+                        "properties": {
+                            "priority": 1000,
+                            "action": {
+                                "type": "Allow"
+                            },
+                            "rules": [
+                                {
+                                    "name": "AllowZscaler",
+                                    "protocols": [
+                                        "Any"
+                                    ],
+                                    "sourceAddresses": [
+                                        "*"
+                                    ],
+                                    "destinationAddresses": [
+                                        "[variables('zScalerIpAddress')]"
+                                    ],
+                                    "sourceIpGroups": [],
+                                    "destinationIpGroups": [],
+                                    "destinationFqdns": [],
+                                    "destinationPorts": [
+                                        "*"
+                                    ]
+                                },
+                                {
+                                    "name": "AllowAzureSrv",
+                                    "protocols": [
+                                        "Any"
+                                    ],
+                                    "sourceAddresses": [
+                                        "*"
+                                    ],
+                                    "destinationAddresses": [
+                                        "AzureCloud"
+                                    ],
+                                    "sourceIpGroups": [],
+                                    "destinationIpGroups": [],
+                                    "destinationFqdns": [],
+                                    "destinationPorts": [
+                                        "*"
+                                    ]
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "DenyRules",
+                        "properties": {
+                            "priority": 4000,
+                            "action": {
+                                "type": "Deny"
+                            },
+                            "rules": [
+                                {
+                                    "name": "DenyInternet",
+                                    "protocols": [
+                                        "Any"
+                                    ],
+                                    "sourceAddresses": [
+                                        "*"
+                                    ],
+                                    "destinationAddresses": [
+                                        "*"
+                                    ],
+                                    "sourceIpGroups": [],
+                                    "destinationIpGroups": [],
+                                    "destinationFqdns": [],
+                                    "destinationPorts": [
+                                        "*"
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "applicationRuleCollections": [],
+                "natRuleCollections": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/publicIPAddresses",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('publicIPAddresses_azureFirewall_name')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {
+                "publicIPAddressVersion": "IPv4",
+                "publicIPAllocationMethod": "Static",
+                "ipTags": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('nsg_internalDc_name')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('nsg_edgeDc_name')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": []
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('nsg_infoBlox_name')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "[variables('nsgRule_allowIntraComm_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_allowDnsInbound_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "53",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 110,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_allowInternalDcs_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[parameters('vNet_subnetInternalDc_addressSpace')]",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 170,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_allowRdpInbound_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "10.202.9.0/26",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_denyVnetInbound_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Deny",
+                            "priority": 4096,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('nsg_rdp_name')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": [
+                    {
+                        "name": "[variables('nsgRule_allowIntraComm_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[parameters('vNet_subnetInfoBlox_addressSpace')]",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetRdp_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 100,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_allowRdpInbound_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "3389",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetRdp_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 120,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_allowInternalDcs_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "[parameters('vNet_subnetInternalDc_addressSpace')]",
+                            "destinationAddressPrefix": "[parameters('vNet_subnetRdp_addressSpace')]",
+                            "access": "Allow",
+                            "priority": 170,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    },
+                    {
+                        "name": "[variables('nsgRule_denyVnetInbound_name')]",
+                        "properties": {
+                            "protocol": "*",
+                            "sourcePortRange": "*",
+                            "destinationPortRange": "*",
+                            "sourceAddressPrefix": "VirtualNetwork",
+                            "destinationAddressPrefix": "VirtualNetwork",
+                            "access": "Deny",
+                            "priority": 4096,
+                            "direction": "Inbound",
+                            "sourcePortRanges": [],
+                            "destinationPortRanges": [],
+                            "sourceAddressPrefixes": [],
+                            "destinationAddressPrefixes": []
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2020-05-01",
+            "name": "[parameters('nsg_infrastructure_name')]",
+            "location": "[variables('location')]",
+            "properties": {
+                "securityRules": []
+            }
+        }
+    ],
+    "outputs": {
+        "VNetId": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vNet_name'))]"
+        }
+    }
+}
